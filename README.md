@@ -19,3 +19,5 @@ Potental features:
 
 Step 3
 Send data to ML Model, try different models, hope and pray
+
+# DO NOT OPEN ZIP_BOMB.ZIP PLEASE
