@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import cv2
 import numpy as np
+from datetime import datetime
 
 
 def pytesseract_preprocessing(cropped_image, padding=10):
@@ -14,13 +15,20 @@ def pytesseract_preprocessing(cropped_image, padding=10):
     return Image.fromarray(img)
 
 
+def filename_to_datetime(filename):
+    name = filename.replace('.jpeg', '')
+    return datetime.strptime(name, '%m %d %Y %I %M %S %p')
+
+
 def loop(directory, csv_file):
+    os.makedirs("resources/cropped_images", exist_ok=True)
+    os.makedirs("resources/processed_images", exist_ok=True)
 
 
     errored_imgs = []
     errors = 0
 
-    for image in sorted(os.listdir(directory)):
+    for image in sorted(os.listdir(directory), key=filename_to_datetime):
         path = os.path.join(directory, image)
         img = Image.open(path).convert("RGB")
         price_crop = img.crop((1300, 590, 1450, 685))
