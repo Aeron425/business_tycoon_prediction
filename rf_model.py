@@ -11,7 +11,7 @@ import pickle
 CV = StratifiedKFold(n_splits = 5, shuffle = True, random_state = 42)
 
 
-def process_data(filepath = "processed_data.csv"):
+def process_data(filepath = "resources/data/processed_data.csv"):
     data = pd.read_csv(filepath)
     data.columns = data.columns.str.strip()
     data["Direction"] = data["Direction"].shift(-1)

@@ -28,4 +28,4 @@ data['Rolling_std_5'] = data['Money'].rolling(5).std()
 data['Rolling_min_5'] = data['Money'].rolling(5).min()
 data['Rolling_max_5'] = data['Money'].rolling(5).max()
 
-data.to_csv('processed_data.csv', index=False)
+data.to_csv('resources/data/processed_data.csv', index=False)
