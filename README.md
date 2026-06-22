@@ -18,6 +18,25 @@ Potental features:
 - More metrics probably
 
 Step 3
-Send data to ML Model, try different models, hope and pray
+Process with an ML Model
 
+Models to Try:
+
+Traditional Models
+- Random Forest | Best Output at 64% Accuracy
+- XGBoost Random Forest | Worse Output than Random Forest
+- XGBoost Classifier | Worse Output than Random Forest
+- Maybe some others
+
+Neural Networks
+- RNN (Recurrent Neural Network) | Not Tried
+- LSTM (Long Short Term Memory) | Not Tried
+- Other RNN Offshoots
+
+# Current Agenda
+
+Priorities
+1. Get more data
+2. Implement neural networks
+3. 
 # DO NOT OPEN ZIP_BOMB.ZIP PLEASE
