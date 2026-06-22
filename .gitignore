@@ -1,7 +1,6 @@
 cropped_images/
 processed_images/
 images/
-plots/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
