@@ -40,4 +40,9 @@ Priorities
 2. Implement neural networks
 3. Make this presentable for final project
 
+# Contributors
+Gavin - Code for Traditional ML, Data Processing, Neural Networks
+Shanuk - Code for Image Processing, Neural Networks
+Jack - Data Collection and Analysis, Code for Data Processing
+
 # DO NOT OPEN ZIP_BOMB.ZIP PLEASE
