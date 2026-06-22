@@ -39,6 +39,7 @@ Priorities
 1. Get more data
 2. Implement neural networks
 3. Make this presentable for final project
+4. Try other traditional ML models and neural networks not listed
 
 # Contributors
 Gavin - Code for Traditional ML, Data Processing, Neural Networks
