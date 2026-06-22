@@ -1,6 +1,6 @@
 import pandas as pd
 
-data = pd.read_csv('data.csv')
+data = pd.read_csv('resources/data/current.csv')
 data.columns = data.columns.str.strip()
 data["Money"] = data["Money"].astype(int)
 
