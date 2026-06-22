@@ -38,5 +38,6 @@ Neural Networks
 Priorities
 1. Get more data
 2. Implement neural networks
-3. 
+3. Make this presentable for final project
+
 # DO NOT OPEN ZIP_BOMB.ZIP PLEASE
