@@ -13,5 +13,5 @@ ax.set_ylabel("Money")
 ax.xaxis.set_major_locator(MaxNLocator(nbins=30))
 ax.set_title("Over Time Price Changes")
 
-plt.savefig("resources/plots/data.png", dpi=120)
+plt.savefig("resources/plots/raw_data.png", dpi=120)
 plt.close()
