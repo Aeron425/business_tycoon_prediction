@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 from datetime import datetime
 
+pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
 def pytesseract_preprocessing(cropped_image, padding=10):
     img = cv2.cvtColor(np.array(cropped_image), cv2.COLOR_RGB2GRAY)
@@ -16,10 +17,25 @@ def pytesseract_preprocessing(cropped_image, padding=10):
 
 
 def filename_to_datetime(filename):
-    name = filename.replace(".jpeg", "")
-    time = datetime.strptime(name, "%m %d %Y %I %M %S %p")
-    print(time)
-    return time
+    parts = filename.replace(".jpeg", "").replace(".jpg", "").split()
+    
+    if len(parts) not in (6, 7):
+        return datetime.min
+
+    if len(parts) == 7:
+        m, d, y, h, minute, s, ampm = parts
+        hour = int(h) + 12 if ampm.upper() == "PM" and int(h) < 12 else int(h)
+        return datetime(int(y), int(m), int(d), hour, int(minute), int(s))
+        
+    else:
+        if len(parts[0]) == 4:
+            y, m, d, h, minute, s = parts
+        else:
+            m, d, y, h, minute, s = parts
+            
+        return datetime(int(y), int(m), int(d), int(h), int(minute), int(s))
+
+
 
 
 def loop(directory, csv_file):
