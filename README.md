@@ -23,7 +23,7 @@ Process with an ML Model
 Models to Try:
 
 Traditional Models
-- Random Forest | Best Output at 64% Accuracy
+- Random Forest | Best Output at 62-73% Accuracy
 - XGBoost Random Forest | Worse Output than Random Forest
 - XGBoost Classifier | Worse Output than Random Forest
 - Maybe some others
@@ -32,6 +32,14 @@ Neural Networks
 - RNN (Recurrent Neural Network) | Not Tried
 - LSTM (Long Short Term Memory) | Not Tried
 - Other RNN Offshoots
+
+LSTM or RNN Feature List
+-  Time
+-  Money
+-  Mean over 5 minutes
+-  Min over 5 minutes
+-  Max over 5 minutes
+-  Percentage change
 
 # Current Agenda
 
