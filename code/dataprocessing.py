@@ -20,7 +20,6 @@ for i in range(1, len(data)):
 
 for lag in range(1, 6):
     data[f"money_lag{lag}"] = data["money"].shift(lag)
-    data[f"direction_lag{lag}"] = data["direction"].shift(lag)
     data[f"streak_lag{lag}"] = data["streak"].shift(lag)
 
 data.to_csv("resources/data/readable_data.csv", index=False)
