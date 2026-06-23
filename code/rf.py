@@ -10,7 +10,7 @@ import os
 
 CV = StratifiedKFold(n_splits = 5, shuffle = True, random_state = 42)
 SHIFTS = [1, 3, 5, 7, 10, 15]
-
+i = 0
 
 def process_data(filepath = "resources/data/processed_data.csv", shift = 1):
     data = pd.read_csv('resources/data/data.csv')
