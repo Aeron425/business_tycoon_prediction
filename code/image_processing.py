@@ -59,7 +59,7 @@ def loop(directory, csv_file):
 
 
 def main():
-    csv_file = "resources/data/data2.csv"
+    csv_file = "resources/data/data.csv"
     directory = "resources/images"
     loop(directory, csv_file)
 
