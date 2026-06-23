@@ -12,16 +12,13 @@ CV = StratifiedKFold(n_splits = 5, shuffle = True, random_state = 42)
 SHIFT = 1
 
 
-def process_data(filepath = "resources/data/model_ready_data.csv", shift = 1):
+def process_data(filepath="resources/data/model_ready_data.csv", shift = 1):
     data = pd.read_csv(filepath)
     data.columns = data.columns.str.strip()
-
-    data["future_price"] = data["money"].shift(-shift)
-    data["target"] = (data["future_price"] > data["money"]).astype(int)
     data = data.dropna()
 
-    labels = data["target"]
-    features = data.drop(["target", "future_price", "direction", "time"], axis = 1)
+    labels = data["Direction"].map({-1.0: 0, 1.0: 1})
+    features = data.drop(["Direction"], axis=1)
     return labels, features
 
 
@@ -45,10 +42,8 @@ def optimise(labels, features, n_iter = 30, init_points = 10):
     opt.maximize(init_points = init_points, n_iter = n_iter)
     return opt.max["params"]
 
-
-def evaluate(labels, features, best_params=None):
-
-    X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size = 0.2, random_state = 42, stratify = labels)
+def evaluate(labels, features, best_params):
+    X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42, stratify=labels)
 
     model = RandomForestClassifier(
         n_estimators = int(best_params["n_estimators"]),
@@ -87,12 +82,4 @@ def evaluate(labels, features, best_params=None):
 
 labels, features = process_data(shift=SHIFT)
 best_params = optimise(labels, features)
-evaluate(labels, features, best_params=best_params)
-
-# accuracy
-# Shift 15, 71%
-# Shift 10, 72%
-# Shift 7, 73%
-# Shift 5, 71%
-# Shift 3, 69%
-# Shift 1, 66%
+evaluate(labels, features, best_params)
