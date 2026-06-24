@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 from datetime import datetime
 
+pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
 def pytesseract_preprocessing(cropped_image, padding=10):
     img = cv2.cvtColor(np.array(cropped_image), cv2.COLOR_RGB2GRAY)
