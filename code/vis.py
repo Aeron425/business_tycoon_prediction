@@ -1,9 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import pandas as pd
-import matplotlib.pyplot as plt
-from pandas.plotting import autocorrelation_plot
-import datetime
 
 data = pd.read_csv("resources/data/data.csv")
 
