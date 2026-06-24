@@ -16,11 +16,13 @@ def pytesseract_preprocessing(cropped_image, padding=10):
 
 
 def filename_to_datetime(filename):
-    name = filename.replace(".jpeg", "")
-    time = datetime.strptime(name, "%m %d %Y %I %M %S %p")
-    print(time)
-    return time
-
+    name = filename.replace(".jpeg", "").replace(".png", "")
+    for fmt in ("%m %d %Y %I %M %S %p", "%Y %m %d %H %M %S", "%Y %m %d %H %M", "%d %m %Y %H %M"):
+        try:
+            return datetime.strptime(name, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Unknown filename format: {filename}")
 
 def loop(directory, csv_file):
     os.makedirs("resources/cropped_images", exist_ok=True)
@@ -43,7 +45,7 @@ def loop(directory, csv_file):
             price_raw = pytesseract.image_to_string(price, config=r"--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789.").strip()
             price_value = float(price_raw)
 
-            row = pd.DataFrame({"Money": [price_value], "Time": [time]})
+            row = pd.DataFrame({"money": [price_value], "time": [time]})
             row.to_csv(csv_file, mode="a", header=not os.path.exists(csv_file), index=False)
 
             print(price_value)

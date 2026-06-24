@@ -17,12 +17,12 @@ def process_data(filepath = "resources/data/processed_data.csv", shift = 1):
     data.columns = data.columns.str.strip()
     data = data.dropna()
 
-    data['future_price'] = data['Money'].shift(-shift)
-    data['target'] = data['future_price'] > data['Money']
+    data["future_price"] = data["money"].shift(-shift)
+    data["target"] = data["future_price"] > data["money"]
     data = data.dropna()
 
-    labels = data['target']
-    features = data.drop(['target', 'future_price', 'Direction', 'Time'], axis = 1)
+    labels = data["target"]
+    features = data.drop(["target", "future_price", "direction", "time"], axis = 1)
     return labels, features
 
 
@@ -30,7 +30,7 @@ def rf_eval(labels, features, n_estimators, max_depth):
     model = RandomForestClassifier(
         n_estimators = int(n_estimators),
         max_depth = int(max_depth),
-        class_weight = 'balanced',
+        class_weight = "balanced",
         n_jobs = -1,
         random_state = 42,
     )
@@ -56,7 +56,7 @@ def evaluate(labels, features, best_params, shift):
     model = RandomForestClassifier(
         n_estimators = int(best_params["n_estimators"]),
         max_depth = int(best_params["max_depth"]),
-        class_weight = 'balanced',
+        class_weight = "balanced",
         n_jobs = -1,
         random_state = 42,
     )
@@ -95,7 +95,7 @@ def plot_results(results):
 
 results = []
 for shift in SHIFTS:
-    print(f"\n{'='*50}\nRunning shift={shift}\n{'='*50}")
+    print(f"\n{"="*50}\nRunning shift={shift}\n{"="*50}")
     labels, features = process_data(shift = shift)
     best_params = optimise(labels, features)
     model, y_test, preds, X_train = evaluate(labels, features, best_params, shift)
