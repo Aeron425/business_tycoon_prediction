@@ -1,6 +1,7 @@
 cropped_images/
 processed_images/
 images/
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
