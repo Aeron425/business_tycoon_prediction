@@ -10,7 +10,7 @@ import os
 
 
 CV = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-SHIFTS = [3, 5, 7, 10]
+SHIFTS = [5, 7, 10]
 
 
 def process_data(shift=1):
@@ -30,12 +30,11 @@ def process_data(shift=1):
                 streak -= 1
         else:
             streak = data["direction"].iloc[i]
-        data.loc[i, "Streak"] = streak
+        data.loc[i, "streak"] = streak
 
     for lag in range(1, 6):
         data[f"money_lag{lag}"] = data["money"].shift(lag)
         data[f"direction_lag{lag}"] = data["direction"].shift(lag)
-        data[f"Streak_lag{lag}"] = data["Streak"].shift(lag)
 
     data["rolling_std_5"] = data["money"].rolling(5).std()
     data.columns = data.columns.str.strip()
@@ -146,7 +145,7 @@ def plot_results(results):
 
 results = []
 for shift in SHIFTS:
-    print(f"\n{"="*50}\nRunning shift={shift}\n{"="*50}")
+    print(f"\n{'='*50}\nRunning shift={shift}\n{f'='*50}")
     labels, features = process_data(shift=shift)
     best_params = optimise(labels, features)
     model, X_train, X_test, y_test, preds = evaluate(labels, features, best_params, shift)
