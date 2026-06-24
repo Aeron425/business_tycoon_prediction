@@ -10,7 +10,7 @@ import os
 
 
 CV = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-SHIFTS = [1, 3, 5, 7, 10, 15]
+SHIFTS = [3, 5, 7, 10]
 
 
 def process_data(shift=1):
