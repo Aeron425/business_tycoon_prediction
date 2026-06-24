@@ -19,12 +19,7 @@ def pytesseract_preprocessing(cropped_image, padding=10):
 
 def filename_to_datetime(filename):
     name = filename.replace(".jpeg", "").replace(".png", "")
-    for fmt in (
-        "%m %d %Y %I %M %S %p",
-        "%Y %m %d %H %M %S",
-        "%Y %m %d %H %M",
-        "%d %m %Y %H %M",
-    ):
+    for fmt in ("%m %d %Y %I %M %S %p", "%Y %m %d %H %M %S", "%Y %m %d %H %M", "%d %m %Y %H %M"):
         try:
             return datetime.strptime(name, fmt)
         except ValueError:
@@ -73,8 +68,8 @@ def loop(directory, csv_file):
 
 
 def main():
-    csv_file = "resources/data/data.csv"
-    directory = "resources/images"
+    csv_file = "resources/data/test_data.csv"
+    directory = "resources/test_images"
     loop(directory, csv_file)
 
 

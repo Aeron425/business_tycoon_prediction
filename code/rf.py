@@ -10,7 +10,7 @@ import os
 
 
 CV = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-SHIFTS = [5, 7, 10]
+SHIFTS = [5, 7]
 
 
 def process_data(shift=1):
@@ -32,11 +32,9 @@ def process_data(shift=1):
             streak = data["direction"].iloc[i]
         data.loc[i, "streak"] = streak
 
-    for lag in range(1, 6):
+    for lag in range(1,4):
         data[f"money_lag{lag}"] = data["money"].shift(lag)
-        data[f"direction_lag{lag}"] = data["direction"].shift(lag)
 
-    data["rolling_std_5"] = data["money"].rolling(5).std()
     data.columns = data.columns.str.strip()
     data = data.dropna()
 
