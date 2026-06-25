@@ -67,9 +67,9 @@ def loop(directory, csv_file):
     print(f"Errored images: {errored_imgs}")
 
 
-def main():
-    csv_file = "resources/data/test_data.csv"
-    directory = "resources/test_images"
+def main(csv_file, directory):
+    csv_file = csv_file
+    directory = directory
     loop(directory, csv_file)
 
 

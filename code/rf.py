@@ -24,13 +24,16 @@ def process_data(shift=1):
     data["percentage_change2"] = data["money"].pct_change(2)
     data["percentage_change5"] = data["money"].pct_change(5)
 
-    for lag in range(1, 4):
+    for lag in range(1, 3):
         data[f"percentage_change_lag{lag}"] = data["percentage_change1"].shift(lag)
 
     roll = data["money"].rolling(10)
-    data["dist_from_max"] = (data["money"] - roll.max()) / roll.std().clip(lower=1e-6)
-    data["dist_from_min"] = (data["money"] - roll.min()) / roll.std().clip(lower=1e-6)
-    data["zscore_10"] = (data["money"] - roll.mean()) / roll.std().clip(lower=1e-6)
+    roll_std = roll.std()
+    roll_std = roll_std.where(roll_std > 0, 0.000001)
+
+    data["dist_from_max"] = (data["money"] - roll.max()) / roll_std
+    data["dist_from_min"] = (data["money"] - roll.min()) / roll_std
+    data["zscore_10"]     = (data["money"] - roll.mean()) / roll_std
 
     data["vol_5"] = data["percentage_change1"].rolling(5).std()
     data["vol_10"] = data["percentage_change1"].rolling(10).std()
@@ -65,7 +68,6 @@ def process_data(shift=1):
 
 
 def time_split(labels, features, test_ratio=0.2):
-    """Chronological split — no shuffling."""
     n = len(features)
     split = int(n * (1 - test_ratio))
     return (

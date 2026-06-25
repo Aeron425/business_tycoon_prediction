@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 shift = 7
 threshold = 0.65
 trade_size = 1.0
-model_path = "/home/gavin/Desktop/coding_projects/python/business_tycoon_prediction/resources/models/rf_shift_7.pkl"
+model_path = r"C:\Users\Student\Desktop\business_tycoon_prediction\resources\models\rf_shift_7.pkl"
 csv = "resources/data/data.csv"
 
 
