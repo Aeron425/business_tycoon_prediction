@@ -1,15 +1,16 @@
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, ConfusionMatrixDisplay
 from sklearn.inspection import permutation_importance
 from bayes_opt import BayesianOptimization
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import os
 
 
-CV = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+CV = StratifiedKFold(n_splits=5, shuffle=False)
 SHIFTS = [5, 7]
 
 
@@ -17,42 +18,69 @@ def process_data(shift=1):
     data = pd.read_csv("resources/data/data.csv")
     data.columns = data.columns.str.strip()
     data["money"] = data["money"].astype(int)
+    data = data[(data["money"] >= 13) & (data["money"] <= 17)]
 
-    data["percentage_change"] = data["money"].pct_change().mul(100).round(2)
-    data["direction"] = data["money"].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+    data["percentage_change1"] = data["money"].pct_change()
+    data["percentage_change2"] = data["money"].pct_change(2)
+    data["percentage_change5"] = data["money"].pct_change(5)
 
-    streak = 0
-    for i in range(1, len(data)):
-        if data["direction"].iloc[i] == data["direction"].iloc[i - 1]:
-            if data["direction"].iloc[i] == 1:
-                streak += 1
-            elif data["direction"].iloc[i] == -1:
-                streak -= 1
+    for lag in range(1, 4):
+        data[f"percentage_change_lag{lag}"] = data["percentage_change1"].shift(lag)
+
+    roll = data["money"].rolling(10)
+    data["dist_from_max"] = (data["money"] - roll.max()) / roll.std().clip(lower=1e-6)
+    data["dist_from_min"] = (data["money"] - roll.min()) / roll.std().clip(lower=1e-6)
+    data["zscore_10"] = (data["money"] - roll.mean()) / roll.std().clip(lower=1e-6)
+
+    data["vol_5"] = data["percentage_change1"].rolling(5).std()
+    data["vol_10"] = data["percentage_change1"].rolling(10).std()
+
+    data["percent_change_over_3"] = data["percentage_change1"].rolling(3).sum()
+    data["percent_change_over_5"] = data["percentage_change1"].rolling(5).sum()
+
+    direction = (
+        data["money"].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+    )
+    streak = []
+    s = 0
+    for d in direction:
+        if d == 0:
+            s = 0
+        elif (s > 0 and d > 0) or (s < 0 and d < 0):
+            s += d
         else:
-            streak = data["direction"].iloc[i]
-        data.loc[i, "streak"] = streak
-
-    for lag in range(1,4):
-        data[f"money_lag{lag}"] = data["money"].shift(lag)
-
-    data.columns = data.columns.str.strip()
-    data = data.dropna()
+            s = d
+        streak.append(s)
+    data["streak"] = streak
 
     data["future_price"] = data["money"].shift(-shift)
-    data["target"] = data["future_price"] > data["money"]
+    data["target"] = (data["future_price"] > data["money"]).astype(int)
     data = data.dropna()
 
-    data.to_csv(f"resources/data/model_data_shift_{shift}.csv")
-
+    features = data.drop(columns=["target", "future_price", "time", "money", "percentage_change1"])
     labels = data["target"]
-    features = data.drop(["target", "future_price", "direction", "time"], axis=1)
+
+    data.to_csv(f"resources/data/model_data_shift_{shift}.csv", index=False)
     return labels, features
 
 
-def rf_eval(labels, features, n_estimators, max_depth):
+def time_split(labels, features, test_ratio=0.2):
+    """Chronological split — no shuffling."""
+    n = len(features)
+    split = int(n * (1 - test_ratio))
+    return (
+        features.iloc[:split],
+        features.iloc[split:],
+        labels.iloc[:split],
+        labels.iloc[split:],
+    )
+
+
+def rf_eval(labels, features, n_estimators, max_depth, min_samples_leaf):
     model = RandomForestClassifier(
         n_estimators=int(n_estimators),
         max_depth=int(max_depth),
+        min_samples_leaf=int(min_samples_leaf),
         class_weight="balanced",
         n_jobs=-1,
         random_state=42,
@@ -62,8 +90,14 @@ def rf_eval(labels, features, n_estimators, max_depth):
 
 def optimise(labels, features, n_iter=30, init_points=10):
     opt = BayesianOptimization(
-        f=lambda n_estimators, max_depth: rf_eval(labels, features, n_estimators, max_depth),
-        pbounds={"n_estimators": (50, 500), "max_depth": (3, 15)},
+        f=lambda n_estimators, max_depth, min_samples_leaf: rf_eval(
+            labels, features, n_estimators, max_depth, min_samples_leaf
+        ),
+        pbounds={
+            "n_estimators": (50, 500),
+            "max_depth": (3, 15),
+            "min_samples_leaf": (1, 50),
+        },
         random_state=42,
         verbose=2,
     )
@@ -74,27 +108,30 @@ def optimise(labels, features, n_iter=30, init_points=10):
 def evaluate(labels, features, best_params, shift):
     os.makedirs("resources/models", exist_ok=True)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        features, labels, test_size=0.2, random_state=42, stratify=labels
-    )
+    X_train, X_test, y_train, y_test = time_split(labels, features)
 
     model = RandomForestClassifier(
         n_estimators=int(best_params["n_estimators"]),
         max_depth=int(best_params["max_depth"]),
+        min_samples_leaf=int(best_params["min_samples_leaf"]),
         class_weight="balanced",
         n_jobs=-1,
         random_state=42,
     )
     model.fit(X_train, y_train)
     preds = model.predict(X_test)
+    proba = model.predict_proba(X_test)[:, 1]
 
     with open(f"resources/models/rf_shift_{shift}.pkl", "wb") as f:
         pickle.dump(model, f)
 
-    print(f"Accuracy: {accuracy_score(y_test, preds) * 100:.2f}%")
+    print(f"\n[shift={shift}] Accuracy: {accuracy_score(y_test, preds) * 100:.2f}%")
     print(classification_report(y_test, preds, target_names=["Down", "Up"]))
 
-    return model, X_train, X_test, y_test, preds
+    baseline = max(y_test.mean(), 1 - y_test.mean())
+    print(f"Majority-class baseline: {baseline * 100:.2f}%")
+
+    return model, X_train, X_test, y_test, preds, proba
 
 
 def plot_results(results):
@@ -102,28 +139,29 @@ def plot_results(results):
     n = len(results)
 
     fig, axes = plt.subplots(n, 2, figsize=(14, 5 * n))
-    for i, (shift, model, X_train, X_test, y_test, preds) in enumerate(results):
+    for i, (shift, model, X_train, X_test, y_test, preds, proba) in enumerate(results):
         ConfusionMatrixDisplay(
             confusion_matrix(y_test, preds), display_labels=["Down", "Up"]
         ).plot(ax=axes[i, 0], cmap="Blues", colorbar=False)
         axes[i, 0].set_title(f"Confusion Matrix (shift={shift})")
 
-        axes[i, 1].barh(X_train.columns, model.feature_importances_)
+        imp = pd.Series(model.feature_importances_, index=X_train.columns).sort_values()
+        axes[i, 1].barh(imp.index, imp.values)
         axes[i, 1].set_xlabel("Importance")
-        axes[i, 1].set_ylabel("Features")
         axes[i, 1].set_title(f"Feature Importances (shift={shift})")
 
     plt.tight_layout()
     plt.savefig("resources/plots/shift_comparison.png", dpi=120)
     plt.close()
-    print("Saved to resources/plots/shift_comparison.png")
 
     fig, axes = plt.subplots(n, 1, figsize=(10, 5 * n))
-    for i, (shift, model, X_train, X_test, y_test, preds) in enumerate(results):
-        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=-1)
-
+    for i, (shift, model, X_train, X_test, y_test, preds, proba) in enumerate(results):
+        perm = permutation_importance(
+            model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=-1
+        )
         sorted_idx = perm.importances_mean.argsort()
-        axes[i].barh(
+        ax = axes[i] if n > 1 else axes
+        ax.barh(
             X_test.columns[sorted_idx],
             perm.importances_mean[sorted_idx],
             xerr=perm.importances_std[sorted_idx],
@@ -131,22 +169,50 @@ def plot_results(results):
             ecolor="gray",
             capsize=3,
         )
-        axes[i].axvline(0, color="black", linewidth=0.8, linestyle="--")
-        axes[i].set_title(f"Permutation Importance (shift={shift})")
-        axes[i].set_xlabel("Mean accuracy decrease")
+        ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
+        ax.set_title(f"Permutation Importance (shift={shift})")
+        ax.set_xlabel("Mean accuracy decrease")
 
     plt.tight_layout()
     plt.savefig("resources/plots/perm_importance.png", dpi=120)
     plt.close()
-    print("Saved to resources/plots/perm_importance.png")
+
+    fig, axes = plt.subplots(1, n, figsize=(7 * n, 4))
+    for i, (shift, model, X_train, X_test, y_test, preds, proba) in enumerate(results):
+        correct = (preds == y_test.values).astype(int)
+        ax = axes[i] if n > 1 else axes
+        ax.scatter(proba, correct, alpha=0.15, s=8)
+        bins = np.linspace(0, 1, 11)
+        bin_idx = np.digitize(proba, bins) - 1
+        for b in range(10):
+            mask = bin_idx == b
+            if mask.sum() > 5:
+                ax.plot(
+                    bins[b] + 0.05,
+                    correct[mask].mean(),
+                    "ro",
+                    markersize=6,
+                )
+        ax.set_xlabel("Predicted probability (Up)")
+        ax.set_ylabel("Correct (1) / Wrong (0)")
+        ax.set_title(f"Calibration check (shift={shift})")
+
+    plt.tight_layout()
+    plt.savefig("resources/plots/calibration.png", dpi=120)
+    plt.close()
+    print("Plots saved to resources/plots/")
 
 
 results = []
 for shift in SHIFTS:
-    print(f"\n{'='*50}\nRunning shift={shift}\n{f'='*50}")
+    print(f"\n{'=' * 50}\nshift={shift}\n{'=' * 50}")
     labels, features = process_data(shift=shift)
+    print(f"Features: {list(features.columns)}")
+    print(f"Class balance — Up: {labels.mean():.2%}  Down: {(1 - labels.mean()):.2%}")
     best_params = optimise(labels, features)
-    model, X_train, X_test, y_test, preds = evaluate(labels, features, best_params, shift)
-    results.append((shift, model, X_train, X_test, y_test, preds))
+    model, X_train, X_test, y_test, preds, proba = evaluate(
+        labels, features, best_params, shift
+    )
+    results.append((shift, model, X_train, X_test, y_test, preds, proba))
 
 plot_results(results)
