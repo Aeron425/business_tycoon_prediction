@@ -11,51 +11,53 @@ import os
 
 
 CV = StratifiedKFold(n_splits=5, shuffle=False)
-SHIFTS = [5, 7]
+SHIFTS = [5, 7]  # how many steps ahead to predict
 
 
 def process_data(shift=1):
     data = pd.read_csv("resources/data/data.csv")
     data.columns = data.columns.str.strip()
     data["money"] = data["money"].astype(int)
-    data = data[(data["money"] >= 13) & (data["money"] <= 17)]
+    data = data[(data["money"] >= 13) & (data["money"] <= 17)]  # filter outliers
 
+    # percentage change over different time periods
     data["percentage_change1"] = data["money"].pct_change()
     data["percentage_change2"] = data["money"].pct_change(2)
     data["percentage_change5"] = data["money"].pct_change(5)
 
+    # lagged returns so the model can see recent momentum
     for lag in range(1, 4):
         data[f"percentage_change_lag{lag}"] = data["percentage_change1"].shift(lag)
 
+    # position relative to recent 10 minute range
     roll = data["money"].rolling(10)
     roll_std = roll.std()
-    roll_std = roll_std.where(roll_std > 0, 0.000001)
+    roll_std = roll_std.where(roll_std > 0, 0.000001)  # avoids division by zero
 
     data["dist_from_max"] = (data["money"] - roll.max()) / roll_std
     data["dist_from_min"] = (data["money"] - roll.min()) / roll_std
     data["zscore_10"]     = (data["money"] - roll.mean()) / roll_std
 
-    data["vol_5"] = data["percentage_change1"].rolling(5).std()
+    # short and long term volatility
+    data["vol_5"]  = data["percentage_change1"].rolling(5).std()
     data["vol_10"] = data["percentage_change1"].rolling(10).std()
 
+    # cumulative return over recent windows
     data["percent_change_over_3"] = data["percentage_change1"].rolling(3).sum()
     data["percent_change_over_5"] = data["percentage_change1"].rolling(5).sum()
 
-    direction = (
-        data["money"].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
-    )
-    streak = []
-    s = 0
+    # how many consecutive up or down moves in a row
+    direction = data["money"].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+    streak, s = [], 0
     for d in direction:
-        if d == 0:
-            s = 0
-        elif (s > 0 and d > 0) or (s < 0 and d < 0):
-            s += d
-        else:
-            s = d
+        if d == 0:                                     s = 0
+        elif (s > 0 and d > 0) or (s < 0 and d < 0): s += d
+        else:                                          s = d
         streak.append(s)
     data["streak"] = streak
 
+    # defines a boolean to measure if the prediction is correct
+    # needs future data as we are predicting in the future
     data["future_price"] = data["money"].shift(-shift)
     data["target"] = (data["future_price"] > data["money"]).astype(int)
     data = data.dropna()
@@ -68,6 +70,7 @@ def process_data(shift=1):
 
 
 def time_split(labels, features, test_ratio=0.2):
+    # chronological split
     n = len(features)
     split = int(n * (1 - test_ratio))
     return (
@@ -93,6 +96,7 @@ def lgbm_eval(labels, features, n_estimators, max_depth, num_leaves, min_child_s
 
 
 def optimise(labels, features, n_iter=40, init_points=10):
+    # bayesian optimisation finds good hyperparams without brute forcing a grid
     opt = BayesianOptimization(
         f=lambda n_estimators, max_depth, num_leaves, min_child_samples, scale_pos_weight: lgbm_eval(
             labels, features, n_estimators, max_depth, num_leaves, min_child_samples, scale_pos_weight
@@ -163,20 +167,17 @@ def plot_results(results):
     plt.savefig("resources/plots/lgbm_shift_comparison.png", dpi=120)
     plt.close()
 
+
     fig, axes = plt.subplots(n, 1, figsize=(10, 5 * n))
     for i, (shift, model, X_train, X_test, y_test, preds, proba) in enumerate(results):
-        perm = permutation_importance(
-            model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=-1
-        )
+        perm = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=-1)
         sorted_idx = perm.importances_mean.argsort()
         ax = axes[i] if n > 1 else axes
         ax.barh(
             X_test.columns[sorted_idx],
             perm.importances_mean[sorted_idx],
             xerr=perm.importances_std[sorted_idx],
-            color="steelblue",
-            ecolor="gray",
-            capsize=3,
+            color="steelblue", ecolor="gray", capsize=3,
         )
         ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
         ax.set_title(f"Permutation Importance (shift={shift})")
@@ -186,26 +187,6 @@ def plot_results(results):
     plt.savefig("resources/plots/lgbm_perm_importance.png", dpi=120)
     plt.close()
 
-    fig, axes = plt.subplots(1, n, figsize=(7 * n, 4))
-    for i, (shift, model, X_train, X_test, y_test, preds, proba) in enumerate(results):
-        correct = (preds == y_test.values).astype(int)
-        ax = axes[i] if n > 1 else axes
-        ax.scatter(proba, correct, alpha=0.15, s=8)
-        bins = np.linspace(0, 1, 11)
-        bin_idx = np.digitize(proba, bins) - 1
-        for b in range(10):
-            mask = bin_idx == b
-            if mask.sum() > 5:
-                ax.plot(bins[b] + 0.05, correct[mask].mean(), "ro", markersize=6)
-        ax.set_xlabel("Predicted probability (Up)")
-        ax.set_ylabel("Correct (1) / Wrong (0)")
-        ax.set_title(f"Calibration check (shift={shift})")
-
-    plt.tight_layout()
-    plt.savefig("resources/plots/lgbm_calibration.png", dpi=120)
-    plt.close()
-    print("Plots saved to resources/plots/")
-
 
 results = []
 for shift in SHIFTS:
@@ -214,9 +195,7 @@ for shift in SHIFTS:
     print(f"Features: {list(features.columns)}")
     print(f"Class balance — Up: {labels.mean():.2%}  Down: {(1 - labels.mean()):.2%}")
     best_params = optimise(labels, features)
-    model, X_train, X_test, y_test, preds, proba = evaluate(
-        labels, features, best_params, shift
-    )
+    model, X_train, X_test, y_test, preds, proba = evaluate(labels, features, best_params, shift)
     results.append((shift, model, X_train, X_test, y_test, preds, proba))
 
 plot_results(results)

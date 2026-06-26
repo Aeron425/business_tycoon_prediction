@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 SHIFT = 7
-MODEL_PATH  = r"C:\Users\Student\Desktop\business_tycoon_prediction\resources\models\lgbm_shift_7.pkl"
-TREES_PDF   = r"C:\Users\Student\Desktop\business_tycoon_prediction\resources\trees.pdf"
+MODEL_PATH  = r"C:\Users\Student\Desktop\Jack_Berry\business_tycoon_prediction\resources\models\lgbm_shift_7.pkl"
+TREES_PDF   = r"C:\Users\Student\Desktop\Jack_Berry\business_tycoon_prediction\resources\trees.pdf"
 
 with open(MODEL_PATH, "rb") as f:
     model = pkl.load(f)
@@ -25,25 +25,31 @@ if len(prices) < 11:
 
 data = pd.DataFrame({"money": prices})
 
+# percentage change over different time periods
 data["percentage_change1"] = data["money"].pct_change()
 data["percentage_change2"] = data["money"].pct_change(2)
 data["percentage_change5"] = data["money"].pct_change(5)
 
+# lagged returns so the model can see recent momentum
 for lag in range(1, 4):
     data[f"percentage_change_lag{lag}"] = data["percentage_change1"].shift(lag)
 
+# position relative to recent 10 minute range
 roll = data["money"].rolling(10)
-roll_std = roll.std().clip(lower=1e-6)
+roll_std = roll.std().clip(lower=1e-6)  # avoids division by zero
 data["dist_from_max"] = (data["money"] - roll.max()) / roll_std
 data["dist_from_min"] = (data["money"] - roll.min()) / roll_std
 data["zscore_10"]     = (data["money"] - roll.mean()) / roll_std
 
+# short and long term volatility
 data["vol_5"]  = data["percentage_change1"].rolling(5).std()
 data["vol_10"] = data["percentage_change1"].rolling(10).std()
 
+# cumulative return over recent windows
 data["percent_change_over_3"] = data["percentage_change1"].rolling(3).sum()
 data["percent_change_over_5"] = data["percentage_change1"].rolling(5).sum()
 
+# how many consecutive up or down moves in a row
 direction = data["money"].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
 def _step(s, d):
     if d == 0:                                     return 0
@@ -51,8 +57,10 @@ def _step(s, d):
     else:                                          return d
 data["streak"] = list(accumulate(direction, _step))
 
+# drop raw price and ret1 since they'd leak into the model
 data = data.drop(columns=["money", "percentage_change1"]).dropna()
 
+# predict on the most recent row only
 features = data.iloc[[-1]]
 pred  = model.predict(features)[0]
 proba = model.predict_proba(features)[0]

@@ -24,7 +24,7 @@ def process_data(shift=1):
     data["percentage_change2"] = data["money"].pct_change(2)
     data["percentage_change5"] = data["money"].pct_change(5)
 
-    for lag in range(1, 3):
+    for lag in range(1, 4):
         data[f"percentage_change_lag{lag}"] = data["percentage_change1"].shift(lag)
 
     roll = data["money"].rolling(10)
@@ -65,7 +65,6 @@ def process_data(shift=1):
 
     data.to_csv(f"resources/data/model_data_shift_{shift}.csv", index=False)
     return labels, features
-
 
 def time_split(labels, features, test_ratio=0.2):
     n = len(features)
